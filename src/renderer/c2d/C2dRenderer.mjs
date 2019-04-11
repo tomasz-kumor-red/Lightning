@@ -65,20 +65,26 @@ export default class C2dRenderer extends Renderer {
         this.tintManager.gc(aggressive);
     }
 
-    uploadTextureSource(textureSource, options) {
-        // For canvas, we do not need to upload.
+    createNativeTexture(textureSource, options) {
         if (options.source.buffer) {
-            // Convert RGBA buffer to canvas.
             const canvas = document.createElement('canvas');
             canvas.width = options.w;
             canvas.height = options.h;
+            return canvas;
+        } else {
+            return options.source;
+        }
+    }
 
+    uploadTextureSource(textureSource, nativeTexture, options) {
+        // For canvas, we do not need to upload.
+        if (options.source.buffer) {
+            const canvas = nativeTexture;
+
+            // Convert RGBA buffer to canvas.
             const imageData = new ImageData(new Uint8ClampedArray(options.source.buffer), options.w, options.h);
             canvas.getContext('2d').putImageData(imageData, 0, 0);
-            return canvas;
         }
-
-        return options.source;
     }
 
     freeTextureSource(textureSource) {

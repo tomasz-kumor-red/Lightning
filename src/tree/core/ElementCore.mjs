@@ -1739,6 +1739,10 @@ export default class ElementCore {
         }
     }
 
+    _hasRenderableTextureSource() {
+        return (this._displayedTextureSource && this._displayedTextureSource.isReady());
+    }
+
     _renderSimple() {
         this._hasRenderUpdates = 0;
 
@@ -1749,7 +1753,7 @@ export default class ElementCore {
         if (this._outOfBounds < 2 && this._renderContext.alpha) {
             let renderState = this.renderState;
 
-            if ((this._outOfBounds === 0) && this._displayedTextureSource) {
+            if ((this._outOfBounds === 0) && this._hasRenderableTextureSource()) {
                 renderState.setShader(this.activeShader, this._shaderOwner);
                 renderState.setScissor(this._scissor);
                 this.renderState.addQuad(this);
@@ -1846,7 +1850,7 @@ export default class ElementCore {
                     renderState.setRenderTextureInfo(renderTextureInfo);
                     renderState.setScissor(null);
 
-                    if (this._displayedTextureSource) {
+                    if (this._hasRenderableTextureSource()) {
                         let r = this._renderContext;
 
                         // Use an identity context for drawing the displayed texture to the render texture.
@@ -1861,7 +1865,7 @@ export default class ElementCore {
                     mustRenderChildren = false;
                 }
             } else {
-                if ((this._outOfBounds === 0) && this._displayedTextureSource) {
+                if ((this._outOfBounds === 0) && (this._hasRenderableTextureSource())) {
                     renderState.setShader(this.activeShader, this._shaderOwner);
                     renderState.setScissor(this._scissor);
                     this.renderState.addQuad(this);

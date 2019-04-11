@@ -76,11 +76,20 @@ export default class TextureSource {
          */
         this._loadError = null;
 
-    }
+        /**
+         * Flag that indicates if this texture source is ready to be rendered (uploaded to gpu).
+         * @type {boolean}
+         * @private
+         */
+        this._ready = false;
 
-    isVolatile() {
-        // Textures sources without a lookup id are regarded as volatile: they are removed whenever no longer used.
-        return this.lookupId === null;
+        /**
+         * While the texture is in the upload queue, this holds the loaded data about the generated texture.
+         * @type {object}
+         * @private
+         */
+        this._uploadData = null;
+
     }
 
     get loadError() {
@@ -94,14 +103,7 @@ export default class TextureSource {
     }
 
     removeTexture(v) {
-        if (this.textures.delete(v)) {
-            if (this.textures.size === 0) {
-                if (this.isLoaded() && this.isVolatile()) {
-                    // Texture no longer used by visible textures: free.
-                    this.free();
-                }
-            }
-        }
+        this.textures.delete(v);
     }
 
     incActiveTextureCount() {
@@ -124,6 +126,14 @@ export default class TextureSource {
 
     set isResultTexture(v) {
         this._isResultTexture = v;
+    }
+
+    get uploadData() {
+        return this._uploadData;
+    }
+
+    set uploadData(v) {
+        this._uploadData = v;
     }
 
     forEachEnabledElement(cb) {
@@ -176,7 +186,13 @@ export default class TextureSource {
                 this._cancelCb = null;
             }
             this.loadingSince = 0;
+        } else if (this.isAwaitingUpload()) {
+            this.free();
         }
+    }
+
+    isAwaitingUpload() {
+        return !!this._uploadData;
     }
 
     isLoaded() {
@@ -185,6 +201,14 @@ export default class TextureSource {
 
     isLoading() {
         return this.loadingSince > 0;
+    }
+
+    isReady() {
+        return (this.isLoaded() && (this._isResultTexture || this._ready));
+    }
+
+    isUsed() {
+        return this._activeTextureCount > 0;
     }
 
     isError() {
@@ -298,8 +322,20 @@ export default class TextureSource {
         return this._nativeTexture;
     }
 
-    clearNativeTexture() {
+    cleanup() {
         this._nativeTexture = null;
+        this._ready = false;
+        this._uploadData = null;
+    }
+
+    onUploaded() {
+        this._setReady();
+        this._uploadData = null;
+    }
+
+    _setReady() {
+        this._ready = true;
+        this.forceRenderUpdate();
     }
 
     /**

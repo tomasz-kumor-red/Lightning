@@ -12,10 +12,10 @@ export default class TextureManager {
         this._usedMemory = 0;
 
         /**
-         * All uploaded texture sources.
+         * All created (and possibly uploaded) texture sources.
          * @type {TextureSource[]}
          */
-        this._uploadedTextureSources = [];
+        this._createdTextureSources = [];
 
         /**
          * The texture source lookup id to texture source hashmap.
@@ -30,8 +30,8 @@ export default class TextureManager {
     }
 
     destroy() {
-        for (let i = 0, n = this._uploadedTextureSources.length; i < n; i++) {
-            this._nativeFreeTextureSource(this._uploadedTextureSources[i]);
+        for (let i = 0, n = this._createdTextureSources.length; i < n; i++) {
+            this._nativeFreeTextureSource(this._createdTextureSources[i]);
         }
         
         this.textureSourceHashmap.clear();
@@ -61,22 +61,29 @@ export default class TextureManager {
     uploadTextureSource(textureSource, options) {
         if (textureSource.isLoaded()) return;
 
-        this._addMemoryUsage(textureSource.w * textureSource.h);
-
         // Load texture.
-        const nativeTexture = this._nativeUploadTextureSource(textureSource, options);
+        const nativeTexture = this._createNativeTexture(textureSource, options);
 
         textureSource._nativeTexture = nativeTexture;
 
         // We attach w and h to native texture (we need it in CoreRenderState._isRenderTextureReusable).
         nativeTexture.w = textureSource.w;
         nativeTexture.h = textureSource.h;
-
+        
         nativeTexture.update = this.stage.frameCounter;
 
-        this._uploadedTextureSources.push(textureSource);
+        this._createdTextureSources.push(textureSource);
         
         this.addToLookupMap(textureSource);
+
+        textureSource.uploadData = options;
+
+        setTimeout(() => {
+            if (textureSource.isAwaitingUpload()) {
+                this._uploadNativeTexture(textureSource);
+            }
+        }, Math.random() * 4000);
+
     }
 
     _addMemoryUsage(delta) {
@@ -100,8 +107,8 @@ export default class TextureManager {
     
     freeUnusedTextureSources() {
         let remainingTextureSources = [];
-        for (let i = 0, n = this._uploadedTextureSources.length; i < n; i++) {
-            let ts = this._uploadedTextureSources[i];
+        for (let i = 0, n = this._createdTextureSources.length; i < n; i++) {
+            let ts = this._createdTextureSources[i];
             if (ts.allowCleanup()) {
                 this._freeManagedTextureSource(ts);
             } else {
@@ -109,7 +116,7 @@ export default class TextureManager {
             }
         }
 
-        this._uploadedTextureSources = remainingTextureSources;
+        this._createdTextureSources = remainingTextureSources;
 
         this._cleanupLookupMap();
     }
@@ -138,13 +145,13 @@ export default class TextureManager {
      * @param textureSource
      */
     freeTextureSource(textureSource) {
-        const index = this._uploadedTextureSources.indexOf(textureSource);
+        const index = this._createdTextureSources.indexOf(textureSource);
         const managed = (index !== -1);
 
         if (textureSource.isLoaded()) {
             if (managed) {
                 this._addMemoryUsage(-textureSource.w * textureSource.h);
-                this._uploadedTextureSources.splice(index, 1);
+                this._createdTextureSources.splice(index, 1);
             }
             this._nativeFreeTextureSource(textureSource);
         }
@@ -153,13 +160,22 @@ export default class TextureManager {
         textureSource.loadingSince = null;
     }
 
-    _nativeUploadTextureSource(textureSource, options) {
-        return this.stage.renderer.uploadTextureSource(textureSource, options);
+    _createNativeTexture(textureSource, options) {
+        return this.stage.renderer.createNativeTexture(textureSource, options);
     }
 
+    _uploadNativeTexture(textureSource) {
+        this._addMemoryUsage(textureSource.w * textureSource.h);
+
+        const nativeTexture = textureSource.nativeTexture;
+        this.stage.renderer.uploadTextureSource(textureSource, nativeTexture, textureSource.uploadData);
+        nativeTexture.update = this.stage.frameCounter;
+        textureSource.onUploaded();
+    }
+    
     _nativeFreeTextureSource(textureSource) {
         this.stage.renderer.freeTextureSource(textureSource);
-        textureSource.clearNativeTexture();
+        textureSource.cleanup();
     }
 
 }

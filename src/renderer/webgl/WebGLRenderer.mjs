@@ -82,7 +82,14 @@ export default class WebGLRenderer extends Renderer {
         gl.deleteTexture(glTexture);
     }
 
-    uploadTextureSource(textureSource, options) {
+    createNativeTexture(textureSource, options) {
+        const gl = this.stage.gl;
+        let glTexture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, glTexture);
+        return glTexture;
+    }
+
+    uploadTextureSource(textureSource, glTexture, options) {
         const gl = this.stage.gl;
 
         const source = options.source;
@@ -111,7 +118,6 @@ export default class WebGLRenderer extends Renderer {
         format.texParams = options.texParams || {}
         format.texOptions = options.texOptions || {}
 
-        let glTexture = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, glTexture);
 
         gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, format.premultiplyAlpha);
@@ -140,8 +146,6 @@ export default class WebGLRenderer extends Renderer {
 
         glTexture.params = Utils.cloneObjShallow(texParams);
         glTexture.options = Utils.cloneObjShallow(texOptions);
-
-        return glTexture;
     }
 
     freeTextureSource(textureSource) {
