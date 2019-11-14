@@ -13,7 +13,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git@github.com:WebPlatformForEmbedded/Lightning.git"
+    "url": "git@github.com:tomasz-kumor-red/Lightning.git#Lightning-Spark-test"
   },
   "bugs": {
     "url": "https://github.com/WebPlatformForEmbedded/Lightning/issues"
